@@ -1,0 +1,40 @@
+.output-profile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: opacity 0.28s ease;
+  opacity: 1;
+}
+
+.output-profile.fading {
+  opacity: 0;
+}
+
+.profile-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  color: var(--fg-dim);
+  display: block;
+}
+
+.poem-text {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 200;
+  font-style: italic;
+  line-height: 1.65;
+  color: rgba(255,255,255,0.88);
+  margin: 0;
+  padding-left: 16px;
+  border-left: 1px solid rgba(255,255,255,0.18);
+  letter-spacing: 0.01em;
+}
+
+.poem-source {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--fg-dim);
+  letter-spacing: 0.04em;
+  padding-left: 16px;
+}

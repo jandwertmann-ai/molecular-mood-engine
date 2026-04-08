@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Molecular Mood Engine</title>
+  <meta name="description" content="Translate emotional qualities into a visual molecular atmosphere and procedural particle visualizer." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@200;300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Tokens ─────────────────────────────────────────────────────── */
+    :root {
+      --font-sans: 'Inter', sans-serif;
+      --font-display: 'Outfit', sans-serif;
+      --bg-color: #050505;
+      --fg-color: #f7f7f7;
+      --fg-dim: #888888;
+      --border-color: #333333;
+      --accent: #ffffff;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body, html {
+      width: 100%; height: 100%;
+      font-family: var(--font-sans);
+      background-color: var(--bg-color);
+      color: var(--fg-color);
+      overflow: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background-color: #333; border-radius: 10px; }
+
+    /* ── Layout ─────────────────────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: var(--bg-color);
+    }
+
+    .left-panel {
+      flex: 0 0 400px;
+      background-color: var(--bg-color);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      padding: 40px;
+      z-index: 10;
+      box-shadow: 10px 0 30px rgba(0,0,0,0.5);
+      overflow-y: auto;
+    }
+
+    .right-panel {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #000;
+    }
+
+    #canvas-container { width: 100%; height: 100%; }
+
+    /* ── Header ─────────────────────────────────────────────────────────────── */
+    .header { margin-bottom: 40px; }
+
+    .header h1 {
+      font-family: var(--font-display);
+      font-weight: 300;
+      font-size: 26px;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--fg-dim);
+      line-height: 1.5;
+      font-weight: 300;
+    }
+
+    .divider {
+      height: 1px;
+      background-color: var(--border-color);
+      margin: 32px 0;
+      width: 100%;
+    }
+
+    /* ── Control Panel ───────────────────────────────────────────────────────── */
+    .control-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Custom Slider ───────────────────────────────────────────────────────── */
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+    }
+
+    .slider-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--fg-dim);
+      font-weight: 500;
+    }
+
+    .slider-wrapper {
+      position: relative;
+      width: 100%;
+      height: 24px;
+      display: flex;
+      align-items: center;
+    }
+
+    .custom-range {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 2px;
+      outline: none;
+      padding: 0; margin: 0;
+      z-index: 2;
+      position: relative;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .custom-range::-webkit-slider-runnable-track {
+      width: 100%; height: 2px;
+      background: var(--border-color);
+    }
+    .custom-range::-moz-range-track {
+      width: 100%; height: 2px;
+      background: var(--border-color);
+    }
+
+    .custom-range::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      border: 2px solid var(--bg-color);
+    }
+    .custom-range::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+    .custom-range::-moz-range-thumb {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--bg-color);
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+    }
+    .custom-range::-moz-range-thumb:hover { transform: scale(1.3); }
+
+    .slider-track-fill {
+      position: absolute;
+      top: 50%; left: 0;
+      height: 2px;
+      background: var(--accent);
+      transform: translateY(-50%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── Shape Generator ─────────────────────────────────────────────────────── */
+    .shape-generator {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-top: 8px;
+    }
+
+    .shape-title {
+      font-family: var(--font-sans);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-dim);
+    }
+
+    .shape-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .shape-chip {
+      padding: 6px 16px;
+      border-radius: 100px;
+      border: 1px solid var(--border-color);
+      background: transparent;
+      color: var(--fg-dim);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+    }
+    .shape-chip:hover { border-color: rgba(255,255,255,0.4); color: var(--fg-color); }
+    .shape-chip.active {
+      border-color: rgba(255,255,255,0.8);
+      background: rgba(255,255,255,0.07);
+      color: var(--fg-color);
+    }
+
+    /* ── Output Profile ──────────────────────────────────────────────────────── */
+    .output-profile {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: opacity 0.28s ease;
+      opacity: 1;
+    }
+    .output-profile.fading { opacity: 0; }
+
+    .profile-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--fg-dim);
+      display: block;
+    }
+
+    .poem-text {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 200;
+      font-style: italic;
+      line-height: 1.65;
+      color: rgba(255,255,255,0.88);
+      margin: 0;
+      padding-left: 16px;
+      border-left: 1px solid rgba(255,255,255,0.18);
+      letter-spacing: 0.01em;
+    }
+
+    .poem-source {
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--fg-dim);
+      letter-spacing: 0.04em;
+      padding-left: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <!-- Left panel (built by JS) -->
+  <div class="left-panel" id="left-panel">
+    <div class="header">
+      <h1>Molecular Mood Engine</h1>
+      <p class="subtitle">Translate emotional qualities into a visual molecular atmosphere.</p>
+    </div>
+
+    <div class="control-panel" id="control-panel">
+      <!-- sliders injected by JS -->
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="output-profile" id="output-profile">
+      <span class="profile-label">In other words</span>
+      <blockquote class="poem-text" id="poem-text"></blockquote>
+      <p class="poem-source" id="poem-source"></p>
+    </div>
+  </div>
+
+  <!-- Right panel (Three.js canvas) -->
+  <div class="right-panel">
+    <div id="canvas-container"></div>
+  </div>
+</div>
+
+<!-- Three.js from CDN (r167 — stable, importmap-free UMD build) -->
+<script src="./three.min.js"></script>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+//  State
+// ════════════════════════════════════════════════════════════════════════════
+const state = {
+  calm_tense:         50,
+  organic_synthetic:  50,
+  entropy:            50,
+  day_night:          50,
+  intimate_open:      50,
+  shape:              'sphere',
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Simplex Noise (3-D)
+// ════════════════════════════════════════════════════════════════════════════
+const F3 = 1.0 / 3.0;
+const G3 = 1.0 / 6.0;
+const _p = new Uint8Array(256);
+for (let i = 0; i < 256; i++) _p[i] = i;
+for (let i = 255; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [_p[i], _p[j]] = [_p[j], _p[i]];
+}
+const perm = new Uint8Array(512);
+for (let i = 0; i < 512; i++) perm[i] = _p[i & 255];
+
+const grad3 = [
+  [1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],
+  [1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],
+  [0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1],
+];
+function dot3(g, x, y, z) { return g[0]*x + g[1]*y + g[2]*z; }
+function simplex3(xin, yin, zin) {
+  const s = (xin + yin + zin) * F3;
+  const i = Math.floor(xin + s), j = Math.floor(yin + s), k = Math.floor(zin + s);
+  const t = (i + j + k) * G3;
+  const x0 = xin - i + t, y0 = yin - j + t, z0 = zin - k + t;
+  let i1, j1, k1, i2, j2, k2;
+  if (x0 >= y0) {
+    if (y0 >= z0)       { i1=1;j1=0;k1=0;i2=1;j2=1;k2=0; }
+    else if (x0 >= z0)  { i1=1;j1=0;k1=0;i2=1;j2=0;k2=1; }
+    else                { i1=0;j1=0;k1=1;i2=1;j2=0;k2=1; }
+  } else {
+    if (y0 < z0)        { i1=0;j1=0;k1=1;i2=0;j2=1;k2=1; }
+    else if (x0 < z0)   { i1=0;j1=1;k1=0;i2=0;j2=1;k2=1; }
+    else                { i1=0;j1=1;k1=0;i2=1;j2=1;k2=0; }
+  }
+  const x1=x0-i1+G3, y1=y0-j1+G3, z1=z0-k1+G3;
+  const x2=x0-i2+2*G3, y2=y0-j2+2*G3, z2=z0-k2+2*G3;
+  const x3=x0-1+3*G3, y3=y0-1+3*G3, z3=z0-1+3*G3;
+  const ii=i&255, jj=j&255, kk=k&255;
+  const g0=grad3[perm[ii+perm[jj+perm[kk]]]%12];
+  const g1=grad3[perm[ii+i1+perm[jj+j1+perm[kk+k1]]]%12];
+  const g2=grad3[perm[ii+i2+perm[jj+j2+perm[kk+k2]]]%12];
+  const g3l=grad3[perm[ii+1+perm[jj+1+perm[kk+1]]]%12];
+  let n0=0,n1=0,n2=0,n3=0;
+  let tt=0.6-x0*x0-y0*y0-z0*z0; if(tt>=0){tt*=tt;n0=tt*tt*dot3(g0,x0,y0,z0);}
+  tt=0.6-x1*x1-y1*y1-z1*z1; if(tt>=0){tt*=tt;n1=tt*tt*dot3(g1,x1,y1,z1);}
+  tt=0.6-x2*x2-y2*y2-z2*z2; if(tt>=0){tt*=tt;n2=tt*tt*dot3(g2,x2,y2,z2);}
+  tt=0.6-x3*x3-y3*y3-z3*z3; if(tt>=0){tt*=tt;n3=tt*tt*dot3(g3l,x3,y3,z3);}
+  return 32*(n0+n1+n2+n3);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Shape Builders
+// ════════════════════════════════════════════════════════════════════════════
+const PARTICLE_COUNT = 5000;
+const phi = Math.PI * (3 - Math.sqrt(5));
+
+function buildSphere(r = 1.6) {
+  const out = new Float32Array(PARTICLE_COUNT * 3);
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const y = 1 - (i / (PARTICLE_COUNT - 1)) * 2;
+    const radius = Math.sqrt(Math.max(0, 1 - y * y));
+    const theta = phi * i;
+    out[i*3]   = Math.cos(theta) * radius * r;
+    out[i*3+1] = y * r;
+    out[i*3+2] = Math.sin(theta) * radius * r;
+  }
+  return out;
+}
+
+function buildMountain() {
+  const out = new Float32Array(PARTICLE_COUNT * 3);
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const spread = 1.8;
+    const x = (Math.random() - 0.5) * spread * 2;
+    const z = (Math.random() - 0.5) * spread * 2;
+    const dist = Math.sqrt(x*x + z*z);
+    const y = Math.max(-1.2, 1.8 - 1.5 * dist + simplex3(x*0.8, 0, z*0.8) * 0.4);
+    out[i*3]=x; out[i*3+1]=y; out[i*3+2]=z;
+  }
+  return out;
+}
+
+function buildLSD() {
+  const out = new Float32Array(PARTICLE_COUNT * 3);
+  let idx = 0;
+  const ringCount = 6, coreR = 0.7, perRing = Math.floor(PARTICLE_COUNT * 0.08);
+  for (let ring = 0; ring < ringCount; ring++) {
+    const ra = (ring / ringCount) * Math.PI * 2;
+    const cx = Math.cos(ra) * coreR, cy = Math.sin(ra) * coreR;
+    for (let i = 0; i < perRing && idx < PARTICLE_COUNT; i++) {
+      const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * 0.28;
+      out[idx*3]=cx+Math.cos(a)*r; out[idx*3+1]=cy+Math.sin(a)*r; out[idx*3+2]=(Math.random()-0.5)*0.12; idx++;
+    }
+  }
+  const bondPts = Math.floor(PARTICLE_COUNT * 0.04);
+  for (let ring = 0; ring < ringCount; ring++) {
+    const a0=(ring/ringCount)*Math.PI*2, a1=((ring+1)/ringCount)*Math.PI*2;
+    for (let i = 0; i < bondPts && idx < PARTICLE_COUNT; i++) {
+      const t=i/bondPts;
+      out[idx*3]=Math.cos(a0)*coreR*(1-t)+Math.cos(a1)*coreR*t+(Math.random()-0.5)*0.05;
+      out[idx*3+1]=Math.sin(a0)*coreR*(1-t)+Math.sin(a1)*coreR*t+(Math.random()-0.5)*0.05;
+      out[idx*3+2]=(Math.random()-0.5)*0.05; idx++;
+    }
+  }
+  const outerAngles=[0,Math.PI*0.5,Math.PI,Math.PI*1.5], outerR=1.45, outerPts=Math.floor(PARTICLE_COUNT*0.06);
+  for (const oa of outerAngles) {
+    const ox=Math.cos(oa)*outerR, oy=Math.sin(oa)*outerR;
+    for (let i=0; i<outerPts && idx<PARTICLE_COUNT; i++) {
+      const a=Math.random()*Math.PI*2, r=Math.sqrt(Math.random())*0.22;
+      out[idx*3]=ox+Math.cos(a)*r; out[idx*3+1]=oy+Math.sin(a)*r; out[idx*3+2]=(Math.random()-0.5)*0.1; idx++;
+    }
+    const nearRing=Math.round((oa/(Math.PI*2))*ringCount)%ringCount;
+    const ra=(nearRing/ringCount)*Math.PI*2;
+    const rx=Math.cos(ra)*coreR, ry=Math.sin(ra)*coreR;
+    for (let i=0; i<30 && idx<PARTICLE_COUNT; i++) {
+      const t=i/30;
+      out[idx*3]=rx*(1-t)+ox*t+(Math.random()-0.5)*0.04;
+      out[idx*3+1]=ry*(1-t)+oy*t+(Math.random()-0.5)*0.04;
+      out[idx*3+2]=(Math.random()-0.5)*0.04; idx++;
+    }
+  }
+  while (idx < PARTICLE_COUNT) {
+    const a=Math.random()*Math.PI*2, r=Math.random()*0.15;
+    out[idx*3]=Math.cos(a)*r; out[idx*3+1]=Math.sin(a)*r; out[idx*3+2]=(Math.random()-0.5)*0.1; idx++;
+  }
+  return out;
+}
+
+function buildWave() {
+  const out = new Float32Array(PARTICLE_COUNT * 3);
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    const u=(Math.random()-0.5)*3.6, v=(Math.random()-0.5)*2.4;
+    const y=Math.sin(u*1.8+0.5)*0.45+Math.sin(u*3.2+1.0)*0.22+Math.sin(u*0.9-0.3)*0.30+Math.sin(v*1.4)*0.08+(Math.random()-0.5)*0.08;
+    out[i*3]=u; out[i*3+1]=y; out[i*3+2]=v*0.6;
+  }
+  return out;
+}
+
+// Non La: Vietnamese conical hat — cone surface pointing upward
+function buildNonLa() {
+  const out = new Float32Array(PARTICLE_COUNT * 3);
+  const tipY = 1.4, baseY = -0.7, maxR = 1.9;
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    // Bias toward brim with sqrt so lower edge is denser
+    const t = Math.sqrt(Math.random());
+    const y = tipY - t * (tipY - baseY);
+    const r = t * maxR + (Math.random() - 0.5) * 0.04;
+    const angle = Math.random() * Math.PI * 2;
+    out[i*3]   = Math.cos(angle) * r;
+    out[i*3+1] = y;
+    out[i*3+2] = Math.sin(angle) * r;
+  }
+  return out;
+}
+
+function buildStar() {
+  const out = new Float32Array(PARTICLE_COUNT * 3);
+  const outerR=1.7, innerR=0.68, pts=5;
+  const verts = [];
+  for (let p=0; p<pts*2; p++) {
+    const angle=(p/(pts*2))*Math.PI*2-Math.PI/2;
+    verts.push([Math.cos(angle)*(p%2===0?outerR:innerR), Math.sin(angle)*(p%2===0?outerR:innerR)]);
+  }
+  const c=[0,0];
+  const tris=[];
+  for (let p=0;p<pts*2;p++) tris.push([c, verts[p], verts[(p+1)%(pts*2)]]);
+  const areas=tris.map(([a,b,cv])=>Math.abs((b[0]-a[0])*(cv[1]-a[1])-(cv[0]-a[0])*(b[1]-a[1]))*0.5);
+  const totalA=areas.reduce((s,a)=>s+a,0);
+  let idx=0;
+  while (idx<PARTICLE_COUNT) {
+    let rv=Math.random()*totalA; let ti=0;
+    for (let t=0;t<tris.length;t++){rv-=areas[t];if(rv<=0){ti=t;break;}}
+    const [a,b,cv]=tris[ti];
+    const s=Math.random(), tt=Math.random(), sr=Math.sqrt(s);
+    out[idx*3]=(1-sr)*a[0]+sr*(1-tt)*b[0]+sr*tt*cv[0];
+    out[idx*3+1]=(1-sr)*a[1]+sr*(1-tt)*b[1]+sr*tt*cv[1];
+    out[idx*3+2]=(Math.random()-0.5)*0.25; idx++;
+  }
+  return out;
+}
+
+// Europe: EU flag — 12 five-pointed stars arranged in a circle
+function buildEurope() {
+  const out = new Float32Array(PARTICLE_COUNT * 3);
+  let idx = 0;
+  const numStars  = 12;
+  const ringR     = 1.25;
+  const starOuter = 0.20, starInner = 0.08;
+  const starPts   = 5;
+  const perStar   = Math.floor(PARTICLE_COUNT / numStars);
+
+  for (let s = 0; s < numStars; s++) {
+    const starAngle = (s / numStars) * Math.PI * 2 - Math.PI / 2;
+    const cx = Math.cos(starAngle) * ringR;
+    const cy = Math.sin(starAngle) * ringR;
+
+    const verts = [];
+    for (let p = 0; p < starPts * 2; p++) {
+      const a = (p / (starPts * 2)) * Math.PI * 2 - Math.PI / 2;
+      const r = p % 2 === 0 ? starOuter : starInner;
+      verts.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    const ctr = [0, 0];
+    const tris = [];
+    for (let p = 0; p < starPts * 2; p++)
+      tris.push([ctr, verts[p], verts[(p + 1) % (starPts * 2)]]);
+    const areas = tris.map(([a, b, c]) =>
+      Math.abs((b[0]-a[0])*(c[1]-a[1]) - (c[0]-a[0])*(b[1]-a[1])) * 0.5);
+    const totalA = areas.reduce((s, a) => s + a, 0);
+
+    for (let i = 0; i < perStar && idx < PARTICLE_COUNT; i++) {
+      let rv = Math.random() * totalA, ti = 0;
+      for (let k = 0; k < tris.length; k++) { rv -= areas[k]; if (rv <= 0) { ti = k; break; } }
+      const [a, b, c] = tris[ti];
+      const u = Math.random(), v = Math.random(), su = Math.sqrt(u);
+      out[idx*3]   = cx + (1-su)*a[0] + su*(1-v)*b[0] + su*v*c[0];
+      out[idx*3+1] = cy + (1-su)*a[1] + su*(1-v)*b[1] + su*v*c[1];
+      out[idx*3+2] = (Math.random() - 0.5) * 0.08;
+      idx++;
+    }
+  }
+  while (idx < PARTICLE_COUNT) {
+    const s = Math.floor(Math.random() * numStars);
+    const sa = (s / numStars) * Math.PI * 2 - Math.PI / 2;
+    out[idx*3]   = Math.cos(sa) * ringR + (Math.random()-0.5) * starOuter;
+    out[idx*3+1] = Math.sin(sa) * ringR + (Math.random()-0.5) * starOuter;
+    out[idx*3+2] = 0; idx++;
+  }
+  return out;
+}
+
+// Pre-compute all shapes once
+const SHAPES = {
+  sphere:   buildSphere(),
+  mountain: buildMountain(),
+  lsd:      buildLSD(),
+  wave:     buildWave(),
+  nonla:    buildNonLa(),
+  star:     buildStar(),
+  europe:   buildEurope(),
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Three.js Renderer
+// ════════════════════════════════════════════════════════════════════════════
+function initThree() {
+  const container = document.getElementById('canvas-container');
+
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setClearColor(0x000000, 0);
+  container.appendChild(renderer.domElement);
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 100);
+  camera.position.set(0, 0, 5);
+
+  const positions  = new Float32Array(PARTICLE_COUNT * 3);
+  const currentPos = new Float32Array(PARTICLE_COUNT * 3);
+  const colors     = new Float32Array(PARTICLE_COUNT * 3);
+  const sizes      = new Float32Array(PARTICLE_COUNT);
+
+  const initShape = SHAPES['sphere'];
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    positions[i*3] = currentPos[i*3] = initShape[i*3];
+    positions[i*3+1] = currentPos[i*3+1] = initShape[i*3+1];
+    positions[i*3+2] = currentPos[i*3+2] = initShape[i*3+2];
+    colors[i*3]=0.42; colors[i*3+1]=0.38; colors[i*3+2]=1.0;
+    sizes[i] = 0.5 + Math.random() * 1.5;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color',    new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute('size',     new THREE.BufferAttribute(sizes, 1));
+
+  const material = new THREE.PointsMaterial({
+    size: 0.025,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.88,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexColors: true,
+  });
+
+  const points = new THREE.Points(geometry, material);
+  scene.add(points);
+
+  let targetRotX=0, targetRotY=0, curRotX=0, curRotY=0;
+  window.addEventListener('mousemove', (e) => {
+    targetRotY = ((e.clientX / window.innerWidth)  - 0.5) *  0.8;
+    targetRotX = ((e.clientY / window.innerHeight) - 0.5) *  0.8;
+  });
+
+  window.addEventListener('resize', () => {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  });
+
+  const clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const t  = clock.getElapsedTime();
+    const sl = state;
+
+    const speedFactor  = 0.03 + (sl.calm_tense      / 100) * 0.25;
+    const noiseAmp     = 0.02 + (sl.entropy          / 100) * 0.55;
+    const noiseScale   = 0.5  + (sl.entropy          / 100) * 1.2;
+    const jitter       = (1 - sl.organic_synthetic   / 100) * 0.08;
+    const symmetryPull = sl.organic_synthetic / 100;
+    const brightness   = 0.25 + (sl.day_night        / 100) * 0.75;
+    const warmth       = 1 - (sl.intimate_open        / 100);
+
+    material.size = 0.012 + (sl.calm_tense / 100) * 0.008;
+
+    const posArr = geometry.attributes.position.array;
+    const colArr = geometry.attributes.color.array;
+    const target = SHAPES[sl.shape] || SHAPES['sphere'];
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const tx=target[i*3], ty=target[i*3+1], tz=target[i*3+2];
+      const nx=simplex3(tx*noiseScale+t*speedFactor, ty*noiseScale,               tz*noiseScale      )*noiseAmp;
+      const ny=simplex3(tx*noiseScale,               ty*noiseScale+t*speedFactor, tz*noiseScale+1.7  )*noiseAmp;
+      const nz=simplex3(tx*noiseScale+3.1,           ty*noiseScale,               tz*noiseScale+t*speedFactor)*noiseAmp;
+      const jx=(Math.sin(t*0.3+i*0.01)-0.5)*jitter;
+      const jy=(Math.cos(t*0.2+i*0.01)-0.5)*jitter;
+
+      let destX=tx+nx+jx, destY=ty+ny+jy, destZ=tz+nz;
+
+      if (symmetryPull > 0.5 && i % 2 === 1 && i > 0) {
+        const blend=(symmetryPull-0.5)*2;
+        destX=destX+(-posArr[(i-1)*3]-destX)*blend*0.3;
+      }
+
+      const lerp=0.04;
+      currentPos[i*3]  += (destX-currentPos[i*3])*lerp;
+      currentPos[i*3+1]+= (destY-currentPos[i*3+1])*lerp;
+      currentPos[i*3+2]+= (destZ-currentPos[i*3+2])*lerp;
+
+      posArr[i*3]=currentPos[i*3]; posArr[i*3+1]=currentPos[i*3+1]; posArr[i*3+2]=currentPos[i*3+2];
+
+      const pct=i/PARTICLE_COUNT;
+      let r,g,b;
+      if (warmth > 0.5) {
+        const w=(warmth-0.5)*2;
+        r=(0.42+pct*0.3)*(1-w)+(0.90+pct*0.1)*w;
+        g=(0.20+pct*0.2)*(1-w)+(0.50+pct*0.1)*w;
+        b=(0.95-pct*0.1)*(1-w)+0.10*w;
+      } else {
+        const c=warmth*2;
+        r=0.05*(1-c)+(0.42+pct*0.3)*c;
+        g=(0.5+pct*0.3)*(1-c)+(0.20+pct*0.2)*c;
+        b=1.0*(1-c)+(0.95-pct*0.1)*c;
+      }
+      colArr[i*3]=Math.min(1,r*brightness); colArr[i*3+1]=Math.min(1,g*brightness); colArr[i*3+2]=Math.min(1,b*brightness);
+    }
+
+    geometry.attributes.position.needsUpdate = true;
+    geometry.attributes.color.needsUpdate    = true;
+
+    curRotX += (targetRotX-curRotX) * 0.04;
+    curRotY += (targetRotY-curRotY) * 0.04;
+    points.rotation.x = curRotX;
+    points.rotation.y = curRotY + t * (0.02 + speedFactor * 0.3);
+
+    renderer.render(scene, camera);
+  }
+
+  animate();
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Control Panel Builder
+// ════════════════════════════════════════════════════════════════════════════
+const SLIDERS = [
+  { key: 'calm_tense',        labelLeft: 'Calm',    labelRight: 'Tense'     },
+  { key: 'organic_synthetic', labelLeft: 'Organic', labelRight: 'Synthetic' },
+  { key: 'entropy',           labelLeft: 'Order',   labelRight: 'Entropy'   },
+  { key: 'day_night',         labelLeft: 'Night',   labelRight: 'Day'       },
+  { key: 'intimate_open',     labelLeft: 'Warm',    labelRight: 'Cold'      },
+];
+
+const SHAPE_OPTIONS = [
+  { id: 'sphere',   label: 'Sphere'       },
+  { id: 'mountain', label: 'Mountain'     },
+  { id: 'lsd',      label: 'LSD Molecule' },
+  { id: 'wave',     label: 'Sea Wave'     },
+  { id: 'nonla',    label: 'Non La Hat'   },
+  { id: 'star',     label: 'Star'         },
+  { id: 'europe',   label: 'Europe'       },
+];
+
+function buildControlPanel() {
+  const panel = document.getElementById('control-panel');
+
+  // Sliders
+  SLIDERS.forEach(({ key, labelLeft, labelRight }) => {
+    const container = document.createElement('div');
+    container.className = 'slider-container';
+
+    const labels = document.createElement('div');
+    labels.className = 'slider-labels';
+    labels.innerHTML = `<span class="slider-label">${labelLeft}</span><span class="slider-label">${labelRight}</span>`;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'slider-wrapper';
+
+    const fill = document.createElement('div');
+    fill.className = 'slider-track-fill';
+    fill.style.width = `${state[key]}%`;
+
+    const input = document.createElement('input');
+    input.type = 'range'; input.min = 0; input.max = 100;
+    input.value = state[key];
+    input.className = 'custom-range';
+    input.id = `slider-${key}`;
+    input.addEventListener('input', () => {
+      state[key] = Number(input.value);
+      fill.style.width = `${state[key]}%`;
+      updateExcerpt();
+    });
+
+    wrapper.appendChild(fill);
+    wrapper.appendChild(input);
+    container.appendChild(labels);
+    container.appendChild(wrapper);
+    panel.appendChild(container);
+  });
+
+  // Shape chips
+  const shapeGen = document.createElement('div');
+  shapeGen.className = 'shape-generator';
+  shapeGen.innerHTML = `<h4 class="shape-title">Shape Generator</h4>`;
+
+  const chips = document.createElement('div');
+  chips.className = 'shape-chips';
+
+  SHAPE_OPTIONS.forEach(({ id, label }) => {
+    const btn = document.createElement('button');
+    btn.className = `shape-chip${state.shape === id ? ' active' : ''}`;
+    btn.textContent = label;
+    btn.id = `shape-${id}`;
+    btn.addEventListener('click', () => {
+      state.shape = id;
+      chips.querySelectorAll('.shape-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      updateExcerpt();
+    });
+    chips.appendChild(btn);
+  });
+
+  shapeGen.appendChild(chips);
+  panel.appendChild(shapeGen);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Output Profile (literary excerpts)
+// ════════════════════════════════════════════════════════════════════════════
+const EXCERPTS = {
+  // Warm + Night: intimate, melancholic, longing — Rilke, Verlaine, Lorca
+  warm_night: [
+    {
+      text: "Who, if I cried out, would hear me\namong the orders of Angels?",
+      source: "— Rainer Maria Rilke, Duino Elegies",
+    },
+    {
+      text: "The long sobs of the violins of autumn\nwound my heart with a monotonous languor.",
+      source: "— Paul Verlaine, Chanson d'Automne",
+    },
+    {
+      text: "I want to do with you\nwhat spring does with the cherry trees.",
+      source: "— Pablo Neruda, Every Day You Play",
+    },
+  ],
+  // Warm + Day: luminous, full, joyful — Goethe, Dante, Whitman via Europe
+  warm_day: [
+    {
+      text: "In the middle of the journey of our life\nI came to myself in a dark wood.",
+      source: "— Dante Alighieri, The Divine Comedy",
+    },
+    {
+      text: "Whatever you can do, or dream you can — begin it.\nBoldness has genius, power, and magic in it.",
+      source: "— Johann Wolfgang von Goethe",
+    },
+    {
+      text: "Come then, let us go yet further away,\nsomething calls us to the open sea.",
+      source: "— Arthur Rimbaud, The Drunken Boat",
+    },
+  ],
+  // Cold + Night: stark, existential, dark — Celan, Heine, Kafka
+  cold_night: [
+    {
+      text: "No one kneads us again out of earth and clay,\nno one incants our dust.",
+      source: "— Paul Celan, Psalm",
+    },
+    {
+      text: "Where they burn books,\nthey will ultimately burn people also.",
+      source: "— Heinrich Heine, Almansor",
+    },
+    {
+      text: "The meaning of life is that it stops.",
+      source: "— Franz Kafka",
+    },
+  ],
+  // Cold + Day: vast, philosophical, expansive — Hölderlin, Rilke, Cavafy
+  cold_day: [
+    {
+      text: "As you set out for Ithaka,\nhope your road is a long one.",
+      source: "— C.P. Cavafy, Ithaka",
+    },
+    {
+      text: "What remains of the fleeting hours?\nThe poets establish what remains.",
+      source: "— Friedrich Hölderlin, Remembrance",
+    },
+    {
+      text: "The flesh, alas, is weary; and I have read\nall the books there are.",
+      source: "— Stéphane Mallarmé, Sea Breeze",
+    },
+  ],
+};
+
+function pickExcerpt(sl) {
+  const isWarm  = sl.intimate_open < 50;
+  const isNight = sl.day_night     < 50;
+  const key     = `${isWarm ? 'warm' : 'cold'}_${isNight ? 'night' : 'day'}`;
+  const pool    = EXCERPTS[key];
+  const idx     = Math.floor((sl.entropy * 0.031 + sl.calm_tense * 0.013)) % pool.length;
+  return pool[Math.abs(idx)];
+}
+
+let currentExcerpt = null;
+let fadeTimer = null;
+
+function updateExcerpt() {
+  const next = pickExcerpt(state);
+  if (currentExcerpt && next.text === currentExcerpt.text) return;
+
+  const profile = document.getElementById('output-profile');
+  const poemEl  = document.getElementById('poem-text');
+  const srcEl   = document.getElementById('poem-source');
+
+  if (fadeTimer) clearTimeout(fadeTimer);
+  profile.classList.add('fading');
+
+  fadeTimer = setTimeout(() => {
+    currentExcerpt = next;
+    poemEl.innerHTML = next.text.split('\n').map(l => `<span>${l}<br/></span>`).join('');
+    srcEl.textContent = next.source;
+    profile.classList.remove('fading');
+  }, 280);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+//  Boot — UI first, then renderer
+// ════════════════════════════════════════════════════════════════════════════
+buildControlPanel();
+
+// Set initial excerpt immediately (no fade)
+(function setInitialExcerpt() {
+  const ex = pickExcerpt(state);
+  currentExcerpt = ex;
+  document.getElementById('poem-text').innerHTML =
+    ex.text.split('\n').map(l => `<span>${l}<br/></span>`).join('');
+  document.getElementById('poem-source').textContent = ex.source;
+})();
+
+// Start Three.js (guarded so a WebGL error never breaks the UI)
+try {
+  initThree();
+} catch (err) {
+  console.error('Three.js init failed:', err);
+}
+</script>
+</body>
+</html>
